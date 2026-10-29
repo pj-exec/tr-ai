@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - production
+
+env:
+  LOCALSTACK_CACHE_PATH: localstack-image
+  LOCALSTACK_VERSION: 0.13.0
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: ssh key generate
+      run: echo "$PRODUCTION_SSH_PRIVATE_KEY" > key && chmod 600 key
+      env:
+        PRODUCTION_SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+    - name: Secrets replace DB user and PW
+      run: |
+        sed -i'.bak' 's|${PRODUCTION_DB_USER}|${{ secrets.PRODUCTION_DB_USER }}|g' ./laradock/.env.production; 
+        sed -i'.bak' 's|${PRODUCTION_DB_USER}|${{ secrets.PRODUCTION_DB_USER }}|g' ./laravel/.env.production; 
+        sed -i'.bak' 's|${PRODUCTION_DB_PASSWORD}|${{ secrets.PRODUCTION_DB_PASSWORD }}|g' ./laradock/.env.production;
+        sed -i'.bak' 's|${PRODUCTION_DB_PASSWORD}|${{ secrets.PRODUCTION_DB_PASSWORD }}|g' ./laravel/.env.production;
+    - name: check file
+      run: ls -al
+      
+    - name: Pull and save a LocalStack Docker image
+      if: steps.cache-localstack.outputs.cache-hit != 'true'
+      run: |
+         docker pull localstack/localstack:${LOCALSTACK_VERSION}
+         docker save localstack/localstack:${LOCALSTACK_VERSION} -o ${LOCALSTACK_CACHE_PATH}
+    - run: docker load -i ${LOCALSTACK_CACHE_PATH}
+      
+    - name: Making tar for Deploy
+      run: bash ./prepare_deploy.sh production
+
+    - name: Cache a LocalStack Docker image
+      id: cache-localstack
+      uses: actions/cache@v2
+      with:
+        path: ${{ env.LOCALSTACK_CACHE_PATH }}
+        key: ${{ runner.os }}-localstack-${{ env.LOCALSTACK_VERSION }}
+
+    - name: Deploying
+      run: bash ./exec_deploy.sh key projects@tr-ai.sys4tr.com tr-ai "--build nginx workspace php-fpm mariadb"

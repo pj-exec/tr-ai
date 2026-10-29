@@ -1,0 +1,7 @@
+laradock/laravel-echo-server/package-lock.json
+
+.env
+.env.production
+
+laradock/workspace/insecure_id_rsa
+laradock/workspace/insecure_id_rsa.ppk

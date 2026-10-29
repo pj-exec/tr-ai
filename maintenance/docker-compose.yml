@@ -1,0 +1,31 @@
+version: '3'
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+  shared:
+    external:
+      name: shared
+
+services:
+
+### NGINX Server #########################################
+    nginx:
+      image: nginx
+      volumes:
+        - ${APP_CODE_PATH_HOST}:/var/www
+        - ./nginx.conf:/etc/nginx/conf.d/default.conf
+        - ./logs/nginx/:/var/log/nginx
+      ports:
+        - "${NGINX_HOST_HTTP_PORT}:80"
+      networks:
+        - frontend
+        - backend
+        - shared
+      environment:
+        - VIRTUAL_HOST=${VIRTUAL_HOST}
+        - LETSENCRYPT_HOST=${VIRTUAL_HOST}
+        - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+
